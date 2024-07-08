@@ -7,7 +7,7 @@ export default async function MangaPage({
 }: {
   params: { mangaId: number; volumeNumber: number; pageNumber: number };
 }) {
-  const page = await api.manga.getPageWithSpeechBubbles({
+  const page = await api.manga.getMangaPageWithSpeechBubbles({
     mangaId,
     volumeNumber,
     pageNumber,
