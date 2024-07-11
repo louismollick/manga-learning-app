@@ -8,11 +8,11 @@ export const segmentText = async (line: string) => {
     if (!res.ok) {
       const reason = await res.text();
       console.error(reason);
-      return []
+      return [];
     }
     return (await res.json()) as IchiranResponse;
   } catch (error) {
-    console.error('Error returned from Ichiran:', error);
+    console.error("Error returned from Ichiran:", error);
     return [];
   }
 };

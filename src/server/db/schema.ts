@@ -1,8 +1,8 @@
 // Example model schema from the Drizzle docs
 // https://orm.drizzle.team/docs/sql-schema-declaration
 
-import { type IchiranResponse } from '@/types/ichiran';
-import { type MokuroResponse } from '@/types/mokuro';
+import { type IchiranResponse } from "@/types/ichiran";
+import { type MokuroResponse } from "@/types/mokuro";
 import { relations } from "drizzle-orm";
 import {
   customType,
@@ -32,7 +32,9 @@ export const identity = (name: string) =>
  *
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
-export const createTable = pgTableCreator((name) => `manga-learning-app_${name}`);
+export const createTable = pgTableCreator(
+  (name) => `manga-learning-app_${name}`,
+);
 
 export const manga = createTable(
   "manga",
@@ -62,7 +64,7 @@ export const volumes = createTable(
     mangaReference: foreignKey({
       columns: [volume.mangaId],
       foreignColumns: [manga.id],
-    }).onDelete('cascade')
+    }).onDelete("cascade"),
   }),
 );
 
@@ -85,11 +87,13 @@ export const pages = createTable(
     height: integer("img_height").notNull(),
   },
   (page) => ({
-    compoundKey: primaryKey({ columns: [page.mangaId, page.volumeNumber, page.pageNumber] }),
+    compoundKey: primaryKey({
+      columns: [page.mangaId, page.volumeNumber, page.pageNumber],
+    }),
     volumeReference: foreignKey({
       columns: [page.mangaId, page.volumeNumber],
       foreignColumns: [volumes.mangaId, volumes.volumeNumber],
-    }).onDelete('cascade')
+    }).onDelete("cascade"),
   }),
 );
 
@@ -98,7 +102,7 @@ export const pageRelations = relations(pages, ({ one, many }) => ({
     fields: [pages.mangaId, pages.volumeNumber],
     references: [volumes.mangaId, volumes.volumeNumber],
   }),
-  speechBubbles: many(speechBubbles)
+  speechBubbles: many(speechBubbles),
 }));
 
 export const speechBubbles = createTable(
@@ -113,21 +117,41 @@ export const speechBubbles = createTable(
     width: varchar("width", { length: 255 }).notNull(),
     height: varchar("height", { length: 255 }).notNull(),
     rawText: varchar("rawText", { length: 255 }).notNull(),
-    segmentation: json("segmentation").$type<IchiranResponse>().default([]).notNull(),
-    ocrBlock: json("ocr_block").$type<MokuroResponse['blocks'][number]>().notNull(),
+    segmentation: json("segmentation")
+      .$type<IchiranResponse>()
+      .default([])
+      .notNull(),
+    ocrBlock: json("ocr_block")
+      .$type<MokuroResponse["blocks"][number]>()
+      .notNull(),
   },
   (speechBubble) => ({
-    compoundKey: primaryKey({ columns: [speechBubble.mangaId, speechBubble.volumeNumber, speechBubble.pageNumber, speechBubble.id] }),
+    compoundKey: primaryKey({
+      columns: [
+        speechBubble.mangaId,
+        speechBubble.volumeNumber,
+        speechBubble.pageNumber,
+        speechBubble.id,
+      ],
+    }),
     pageReference: foreignKey({
-      columns: [speechBubble.mangaId, speechBubble.volumeNumber, speechBubble.pageNumber],
+      columns: [
+        speechBubble.mangaId,
+        speechBubble.volumeNumber,
+        speechBubble.pageNumber,
+      ],
       foreignColumns: [pages.mangaId, pages.volumeNumber, pages.pageNumber],
-    }).onDelete('cascade')
+    }).onDelete("cascade"),
   }),
 );
 
 export const speechBubbleRelations = relations(speechBubbles, ({ one }) => ({
   page: one(pages, {
-    fields: [speechBubbles.mangaId, speechBubbles.volumeNumber, speechBubbles.pageNumber],
+    fields: [
+      speechBubbles.mangaId,
+      speechBubbles.volumeNumber,
+      speechBubbles.pageNumber,
+    ],
     references: [pages.mangaId, pages.volumeNumber, pages.pageNumber],
-  })
+  }),
 }));

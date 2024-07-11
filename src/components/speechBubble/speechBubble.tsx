@@ -2,11 +2,7 @@
 
 import React, { type CSSProperties } from "react";
 import { Button } from "../ui/button";
-import {
-  DrawerTrigger,
-  DrawerContent,
-  Drawer,
-} from "../ui/drawer";
+import { DrawerTrigger, DrawerContent, Drawer } from "../ui/drawer";
 import { type IchiranResponse } from "@/types/ichiran";
 import WordReadingPopover from "./wordReadingPopover";
 
