@@ -8,7 +8,7 @@ import createMangaPage from "@/server/db/manga/createMangaPage";
 import assertMangaExists from "@/server/db/manga/assertMangaExists";
 import getMangaVolumeDir from "@/lib/ocr/getMangaVolumePath";
 
-const HOST_URL = `http://localhost:${process.env.PORT ?? 3000}`;
+const HOST_URL = `http://${process.env.EXT_HOST_URL ?? "localhost"}:${process.env.PORT ?? 3000}`;
 
 export const mangaRouter = createTRPCRouter({
   getMangaPageWithSpeechBubbles: publicProcedure
