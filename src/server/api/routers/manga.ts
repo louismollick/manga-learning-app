@@ -3,10 +3,12 @@ import fs from "fs";
 import { and, eq } from "drizzle-orm";
 
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
-import { manga, pages, volumes } from "@/server/db/schema";
-import createMangaPage from "@/server/db/manga/createMangaPage";
+import { manga, pages, speechBubbles, volumes } from "@/server/db/schema";
 import assertMangaExists from "@/server/db/manga/assertMangaExists";
 import getMangaVolumeDir from "@/lib/ocr/getMangaVolumePath";
+import getMangaPageFromOcr from "@/lib/ocr/getMangaPageFromOcr";
+import getSegmentedSpeechBubblesFromOcr from "@/lib/segmentation/getSegmentedSpeechBubblesFromOcr";
+import { unzip } from "@/lib/utils";
 
 const HOST_URL = `http://${process.env.EXT_HOST_URL ?? "localhost"}:${process.env.PORT ?? 3000}`;
 
@@ -69,6 +71,36 @@ export const mangaRouter = createTRPCRouter({
     .input(z.object({ mangaId: z.number(), volumeNumber: z.number() }))
     .mutation(async ({ ctx, input: { mangaId, volumeNumber } }) => {
       await assertMangaExists(mangaId);
+
+      // For each file in directory, run OCR, Ichiran, then insert in DB
+      const directory = getMangaVolumeDir(mangaId, volumeNumber);
+      const imgPaths = fs
+        .readdirSync(`public/${directory}`)
+        .filter((filename) => filename.endsWith(".JPG"))
+        .map((filename) => `${HOST_URL}/${directory}/${filename}`);
+
+      const pagesAndSpeechBubbles = await Promise.all(
+        imgPaths.map(async (imgPath, pageNumber) => {
+          const [ocrResult, pageToInsert] = await getMangaPageFromOcr(
+            imgPath,
+            mangaId,
+            volumeNumber,
+            pageNumber,
+          );
+          const speechBubblesForPage = await getSegmentedSpeechBubblesFromOcr(
+            ocrResult,
+            mangaId,
+            volumeNumber,
+            pageNumber,
+          );
+          return [pageToInsert, speechBubblesForPage] as const;
+        }),
+      );
+
+      const [pagesToInsert, speechBubblesToInsert] = unzip(
+        pagesAndSpeechBubbles,
+      );
+
       await ctx.db.transaction(async (tx) => {
         // Create volume if it does not already exist
         await tx
@@ -79,17 +111,21 @@ export const mangaRouter = createTRPCRouter({
           })
           .onConflictDoNothing();
 
-        // For each file in directory, run OCR, Ichiran, then insert in DB
-        const directory = getMangaVolumeDir(mangaId, volumeNumber);
-        const imgPaths = fs
-          .readdirSync(`public/${directory}`)
-          .filter((filename) => filename.endsWith(".JPG"))
-          .map((filename) => `${HOST_URL}/${directory}/${filename}`);
-        await Promise.all(
-          imgPaths.map(async (imgPath, pageNumber) =>
-            createMangaPage(mangaId, volumeNumber, pageNumber, imgPath, tx),
-          ),
-        );
+        // Insert or update page
+        await tx.insert(pages).values(pagesToInsert);
+
+        // Delete existing speechBubbles for whole volume
+        await tx
+          .delete(speechBubbles)
+          .where(
+            and(
+              eq(speechBubbles.mangaId, mangaId),
+              eq(speechBubbles.volumeNumber, volumeNumber),
+            ),
+          );
+
+        // Insert all speech bubbles for all pages
+        await tx.insert(speechBubbles).values(speechBubblesToInsert.flat());
       });
     }),
 });
