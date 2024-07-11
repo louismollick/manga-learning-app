@@ -1,12 +1,15 @@
 import { z } from "zod";
 import fs from 'fs'
-
-import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { and, eq } from 'drizzle-orm';
+
+import { env } from '@/env';
+import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { manga, pages, volumes } from '@/server/db/schema';
 import createMangaPage from '@/server/db/manga/createMangaPage';
 import assertMangaExists from '@/server/db/manga/assertMangaExists';
 import getMangaVolumeDir from '@/lib/ocr/getMangaVolumePath';
+
+const HOST_URL = env.NODE_ENV === 'production' ? 'https://manga.louismollick.com' : 'http://localhost:3000';
 
 export const mangaRouter = createTRPCRouter({
   getMangaPageWithSpeechBubbles: publicProcedure
@@ -56,7 +59,9 @@ export const mangaRouter = createTRPCRouter({
 
         // For each file in directory, run OCR, Ichiran, then insert in DB
         const directory = getMangaVolumeDir(mangaId, volumeNumber)
-        const imgPaths = fs.readdirSync(directory).map(filename => `${directory}/${filename}`)
+        const imgPaths = fs.readdirSync(`public/${directory}`)
+          .filter(filename => filename.endsWith('.JPG'))
+          .map(filename => `${HOST_URL}/${directory}/${filename}`)
         await Promise.all(imgPaths.map(async (imgPath, pageNumber) => createMangaPage(mangaId, volumeNumber, pageNumber, imgPath, tx)));
       })
     })
