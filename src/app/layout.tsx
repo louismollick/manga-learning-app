@@ -3,7 +3,7 @@ import "@/styles/globals.css";
 import { TRPCReactProvider } from "@/trpc/react";
 import { Inter as FontSans } from "next/font/google";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/utils";
 
 const fontSans = FontSans({
   subsets: ["latin"],
