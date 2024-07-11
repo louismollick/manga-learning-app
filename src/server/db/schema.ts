@@ -5,26 +5,15 @@ import { type IchiranResponse } from "@/types/ichiran";
 import { type MokuroResponse } from "@/types/mokuro";
 import { relations } from "drizzle-orm";
 import {
-  customType,
   foreignKey,
   index,
   integer,
   json,
   pgTableCreator,
   primaryKey,
+  serial,
   varchar,
 } from "drizzle-orm/pg-core";
-
-export const identity = (name: string) =>
-  customType<{
-    data: number;
-    notNull: true;
-    default: true;
-  }>({
-    dataType() {
-      return "INTEGER GENERATED ALWAYS AS IDENTITY";
-    },
-  })(name);
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -39,7 +28,7 @@ export const createTable = pgTableCreator(
 export const manga = createTable(
   "manga",
   {
-    id: identity("id").primaryKey(),
+    id: serial("id").primaryKey(),
     title: varchar("title", { length: 255 }).unique(),
     artists: varchar("artists", { length: 255 }),
   },
@@ -56,7 +45,7 @@ export const mangaRelations = relations(manga, ({ many }) => ({
 export const volumes = createTable(
   "volumes",
   {
-    mangaId: integer("manga_id").notNull(),
+    mangaId: serial("manga_id").notNull(),
     volumeNumber: integer("volume_number").notNull(),
   },
   (volume) => ({
@@ -79,7 +68,7 @@ export const volumesRelations = relations(volumes, ({ one, many }) => ({
 export const pages = createTable(
   "manga_pages",
   {
-    mangaId: integer("manga_id").notNull(),
+    mangaId: serial("manga_id").notNull(),
     volumeNumber: integer("volume_number").notNull(),
     pageNumber: integer("page_number").notNull(),
     imgPath: varchar("img_path", { length: 255 }).notNull(),
@@ -108,10 +97,10 @@ export const pageRelations = relations(pages, ({ one, many }) => ({
 export const speechBubbles = createTable(
   "speech_bubbles",
   {
-    mangaId: integer("manga_id").notNull(),
+    mangaId: serial("manga_id").notNull(),
     volumeNumber: integer("volume_number").notNull(),
     pageNumber: integer("page_number").notNull(),
-    id: integer("id").unique().notNull(),
+    id: integer("id").notNull(),
     left: varchar("left", { length: 255 }).notNull(),
     top: varchar("top", { length: 255 }).notNull(),
     width: varchar("width", { length: 255 }).notNull(),
