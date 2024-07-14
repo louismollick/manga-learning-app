@@ -4,11 +4,11 @@ import { db } from "@/server/db";
 import { pages, speechBubbles } from "@/server/db/schema";
 import { type MokuroResponse } from "@/types/mokuro";
 import getSegmentedSpeechBubblesFromOcr from "../segmentation/getSegmentedSpeechBubblesFromOcr";
+import { env } from '@/env';
 
-const REDIS_URL = "redis://";
-const client = celery.createClient(REDIS_URL, REDIS_URL, 'mokuro');
+const client = celery.createClient(env.REDIS_URL, env.REDIS_URL, 'mokuro');
 export const mokuroTask = client.createTask("mokuro");
-export const worker = celery.createWorker(REDIS_URL, REDIS_URL, 'mokuro_result');
+export const worker = celery.createWorker(env.REDIS_URL, env.REDIS_URL, 'mokuro_result');
 
 const handler = async (
   mangaId: number,
