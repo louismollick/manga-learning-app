@@ -3,6 +3,7 @@ import type { IchiranResponse } from "@/types/ichiran";
 import ManagedError from "../errors/ManagedError";
 
 export const segmentText = async (line: string) => {
+  console.log(`Querying Ichiran for line: ${line}`);
   if (!line) {
     return [];
   }
