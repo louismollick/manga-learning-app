@@ -5,12 +5,12 @@ import SpeechBubble from "@/components/speechBubble/speechBubble";
 export default async function MangaPage({
   params: { mangaId, volumeNumber, pageNumber },
 }: {
-  params: { mangaId: number; volumeNumber: number; pageNumber: number };
+  params: { mangaId: string; volumeNumber: string; pageNumber: string };
 }) {
   const page = await api.manga.getMangaPageWithSpeechBubbles({
-    mangaId,
-    volumeNumber,
-    pageNumber,
+    mangaId: parseInt(mangaId, 10),
+    volumeNumber: parseInt(volumeNumber, 10),
+    pageNumber: parseInt(pageNumber, 10),
   });
 
   if (!page) return <div>Page not found.</div>;
