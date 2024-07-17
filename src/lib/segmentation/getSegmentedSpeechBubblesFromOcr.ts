@@ -1,5 +1,3 @@
-import pRetry from "p-retry";
-
 import { type MokuroResponse } from "@/types/mokuro";
 import { segmentText } from "./segmentText";
 
@@ -22,7 +20,7 @@ const getSegmentedSpeechBubblesFromOcr = (
         width: `${((ocrBlock.box[2] - ocrBlock.box[0]) * 100) / ocrResult.img_width}%`,
         height: `${((ocrBlock.box[3] - ocrBlock.box[1]) * 100) / ocrResult.img_height}%`,
         rawText,
-        segmentations: await pRetry(() => segmentText(rawText), { retries: 1 }),
+        segmentations: await segmentText(rawText),
         ocrBlock,
       };
     }),

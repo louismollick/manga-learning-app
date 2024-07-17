@@ -3,11 +3,12 @@ import fs from "fs";
 import { and, eq } from "drizzle-orm";
 
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
-import { manga, pages, volumes } from "@/server/db/schema";
+import { manga, pages, speechBubbles, volumes } from "@/server/db/schema";
 import assertMangaExists from "@/server/db/manga/assertMangaExists";
 import getMangaVolumeDir from "@/lib/ocr/getMangaVolumePath";
-import { db } from "@/server/db";
-import { mokuroTask } from "@/lib/celery/mokuro";
+import getMangaPageFromOcr from "@/lib/ocr/getMangaPageFromOcr";
+import getSegmentedSpeechBubblesFromOcr from "@/lib/segmentation/getSegmentedSpeechBubblesFromOcr";
+import { unzip } from "@/lib/utils";
 
 const HOST_URL = `http://${process.env.EXT_HOST_URL ?? "localhost"}:${process.env.PORT ?? 3000}`;
 
@@ -68,7 +69,7 @@ export const mangaRouter = createTRPCRouter({
     ),
   createVolumeWithPages: publicProcedure
     .input(z.object({ mangaId: z.number(), volumeNumber: z.number() }))
-    .mutation(async ({ input: { mangaId, volumeNumber } }) => {
+    .mutation(async ({ ctx, input: { mangaId, volumeNumber } }) => {
       await assertMangaExists(mangaId);
 
       // For each file in directory, run OCR, Ichiran, then insert in DB
@@ -78,26 +79,53 @@ export const mangaRouter = createTRPCRouter({
         .filter((filename) => filename.endsWith(".JPG"))
         .map((filename) => `${HOST_URL}/${directory}/${filename}`);
 
-      console.log(`imgPaths: ${JSON.stringify(imgPaths)}`);
-
-      // Add imgPaths to task queue
-      const taskIds = imgPaths.map(
-        (imgPath, pageNumber) =>
-          mokuroTask.applyAsync([mangaId, volumeNumber, pageNumber, imgPath])
-            .taskId,
+      const pagesAndSpeechBubbles = await Promise.all(
+        imgPaths.map(async (imgPath, pageNumber) => {
+          const [ocrResult, pageToInsert] = await getMangaPageFromOcr(
+            imgPath,
+            mangaId,
+            volumeNumber,
+            pageNumber,
+          );
+          const speechBubblesForPage = await getSegmentedSpeechBubblesFromOcr(
+            ocrResult,
+            mangaId,
+            volumeNumber,
+            pageNumber,
+          );
+          return [pageToInsert, speechBubblesForPage] as const;
+        }),
       );
 
-      console.log(
-        `Wrote imgPaths to queue with taskIds: ${JSON.stringify(taskIds)}`,
+      const [pagesToInsert, speechBubblesToInsert] = unzip(
+        pagesAndSpeechBubbles,
       );
 
-      // Create volume if it does not already exist
-      await db
-        .insert(volumes)
-        .values({
-          mangaId,
-          volumeNumber,
-        })
-        .onConflictDoNothing();
+      await ctx.db.transaction(async (tx) => {
+        // Create volume if it does not already exist
+        await tx
+          .insert(volumes)
+          .values({
+            mangaId,
+            volumeNumber,
+          })
+          .onConflictDoNothing();
+
+        // Insert or update page
+        await tx.insert(pages).values(pagesToInsert);
+
+        // Delete existing speechBubbles for whole volume
+        await tx
+          .delete(speechBubbles)
+          .where(
+            and(
+              eq(speechBubbles.mangaId, mangaId),
+              eq(speechBubbles.volumeNumber, volumeNumber),
+            ),
+          );
+
+        // Insert all speech bubbles for all pages
+        await tx.insert(speechBubbles).values(speechBubblesToInsert.flat());
+      });
     }),
 });
